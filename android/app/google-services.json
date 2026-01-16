@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "611945397694",
+    "project_id": "iespushnotification",
+    "storage_bucket": "iespushnotification.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:611945397694:android:ae687a53c2688f8a794def",
+        "android_client_info": {
+          "package_name": "com.example.ies_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqVETF_ypHCxgr0iLtb29VffgUMHF7PPE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

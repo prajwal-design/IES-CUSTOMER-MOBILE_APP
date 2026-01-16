@@ -1,0 +1,2 @@
+/home/user/Documents/Soukhya/ies-mobile/ies_mobile/android/app/.cxx/Debug/6j3c3t3j/armeabi-v7a/CMakeFiles/edit_cache.dir
+/home/user/Documents/Soukhya/ies-mobile/ies_mobile/android/app/.cxx/Debug/6j3c3t3j/armeabi-v7a/CMakeFiles/rebuild_cache.dir

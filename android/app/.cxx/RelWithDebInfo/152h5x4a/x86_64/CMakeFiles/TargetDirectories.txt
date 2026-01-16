@@ -1,0 +1,2 @@
+/home/user/Documents/Soukhya/ies-mobile/ies_mobile/android/app/.cxx/RelWithDebInfo/152h5x4a/x86_64/CMakeFiles/edit_cache.dir
+/home/user/Documents/Soukhya/ies-mobile/ies_mobile/android/app/.cxx/RelWithDebInfo/152h5x4a/x86_64/CMakeFiles/rebuild_cache.dir

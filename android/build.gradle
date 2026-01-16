@@ -1,0 +1,42 @@
+buildscript {
+    ext.kotlin_version = '1.9.21'
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.2.2"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.google.gms:google-services:4.4.1"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            // 🔧 Force BouncyCastle version compatible with Java 17
+            if (details.requested.group == 'org.bouncycastle' &&
+                    details.requested.name.startsWith('bcprov')) {
+                details.useVersion '1.76'
+                details.because 'Force Java 17 compatible version of bcprov-jdk18on'
+            }
+        }
+    }
+}
+
+rootProject.buildDir = '../build'
+
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
