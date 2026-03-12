@@ -27,7 +27,9 @@ class RestApi {
     try {
       dynamic response = await _apiServices.userLogin(ApiEndPoints.login, data);
       return response;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint("Error in RestApi.loginUser: $e\n$stackTrace");
+      debugPrint("\n Error : $e");
       rethrow;
     }
   }
@@ -62,6 +64,26 @@ class RestApi {
     UserDetailsModel systemModel = UserDetailsModel.fromJson(response);
 
     return systemModel;
+  }
+
+  Future<Map<String, Maintenance>> getSensorsWithMaintenance() async {
+    try {
+      var response = await _apiServices
+          .getApiResponse(ApiEndPoints.getSensorsWithMaintenance);
+      Map<String, Maintenance> maintenanceMap = {};
+      if (response != null && response['content'] != null) {
+        for (var sensor in response['content']) {
+          if (sensor['id'] != null && sensor['maintenance'] != null) {
+            maintenanceMap[sensor['id']] =
+                Maintenance.fromJson(sensor['maintenance']);
+          }
+        }
+      }
+      return maintenanceMap;
+    } catch (e) {
+      debugPrint("Error fetching maintenance data: $e");
+      return {};
+    }
   }
 
   Future<List<SensorModel>> getSensorsBySystemId(systemUid) async {
@@ -130,11 +152,11 @@ class RestApi {
           // 🖥 Desktop — show Save As dialog
           savePath = await FilePicker.platform.saveFile(
             dialogTitle: 'Save Report As',
-            fileName: 'IES_Report_${DateTime.now().millisecondsSinceEpoch}$reportFileExtension',
+            fileName:
+                'IES_Report_${DateTime.now().millisecondsSinceEpoch}$reportFileExtension',
             type: FileType.custom,
             allowedExtensions: ['xlsx'],
           );
-
         } else {
           // 📱 Mobile — ask user to pick a folder
           final directoryPath = await FilePicker.platform.getDirectoryPath(

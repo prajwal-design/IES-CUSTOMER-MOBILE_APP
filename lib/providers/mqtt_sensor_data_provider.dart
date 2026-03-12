@@ -32,18 +32,23 @@ class MqttSensorDataProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> getWebSocketData(String? sensorId) async {
+  Future<void> getWebSocketData(String? sensorId, String? sensorName) async {
     isLoading = true;
     notifyListeners();
 
-    if (sensorId == null) {
-      debugPrint('getWebSocketData: sensorId is null, will not connect');
+    if (sensorId == null || sensorName == null) {
+      debugPrint(
+          'getWebSocketData: sensorId or sensorName is null, will not connect');
+      isLoading = false;
+      notifyListeners();
       return;
     }
 
     // If already connected to the same sensor, do nothing
     if (_currentSensorId == sensorId && _socket != null) {
       debugPrint('Already connected to $sensorId');
+      isLoading = false;
+      notifyListeners();
       return;
     }
 
@@ -61,15 +66,15 @@ class MqttSensorDataProvider extends ChangeNotifier {
       _socket!.listen(
         (data) {
           final decodedData = jsonDecode(data);
-          if (decodedData["sensor"] == sensorId) {
-            debugPrint('sensor data of $sensorId : $decodedData');
+          // Match against either ID or Name to be safe
+          if (decodedData["sensor"] == sensorId ||
+              decodedData["sensor"] == sensorName) {
             debugPrint(
-                "V:${decodedData["V"]} R:${decodedData["R"]} I:${decodedData["I"]}");
-            // R = decodedData["R"];
-            V = decodedData["V"];
-            I = decodedData["I"];
+                'sensor data for $sensorName ($sensorId) : $decodedData');
 
-            R = decodedData["R"];
+            V = (decodedData["V"] ?? 0).toDouble();
+            I = (decodedData["I"] ?? 0).toDouble();
+            R = (decodedData["R"] ?? 0).toDouble();
 
             isLoading = false;
             notifyListeners();
@@ -77,18 +82,26 @@ class MqttSensorDataProvider extends ChangeNotifier {
         },
         onDone: () {
           debugPrint('WebSocket connection closed');
-          isLoading = true;
-          notifyListeners();
+          if (_currentSensorId == sensorId) {
+            isLoading = true;
+            notifyListeners();
+          }
           _socket = null;
         },
         onError: (error) {
           debugPrint('WebSocket error: $error');
+          if (_currentSensorId == sensorId) {
+            isLoading = false;
+            notifyListeners();
+          }
           _socket = null;
         },
         cancelOnError: true,
       );
     } catch (e) {
       debugPrint('WebSocket connect error: $e');
+      isLoading = false;
+      notifyListeners();
       _socket = null;
     }
   }

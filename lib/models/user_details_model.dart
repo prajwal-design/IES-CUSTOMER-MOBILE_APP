@@ -220,6 +220,7 @@ class Sensors {
   int? sensorExternalId;
   String? lastUpdatedAt;
   Null data;
+  Maintenance? maintenance;
 
   Sensors(
       {this.name,
@@ -227,7 +228,8 @@ class Sensors {
         this.description,
         this.sensorExternalId,
         this.lastUpdatedAt,
-        this.data});
+        this.data,
+        this.maintenance});
 
   Sensors.fromJson(Map<String, dynamic> json) {
     name = json['name'];
@@ -236,6 +238,9 @@ class Sensors {
     sensorExternalId = json['sensorExternalId'];
     lastUpdatedAt = json['lastUpdatedAt'];
     data = json['data'];
+    maintenance = json['maintenance'] != null
+        ? Maintenance.fromJson(json['maintenance'])
+        : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -246,11 +251,55 @@ class Sensors {
     data['sensorExternalId'] = this.sensorExternalId;
     data['lastUpdatedAt'] = this.lastUpdatedAt;
     data['data'] = this.data;
+    if (this.maintenance != null) {
+      data['maintenance'] = this.maintenance!.toJson();
+    }
     return data;
   }
 
   @override
   String toString() {
     return jsonEncode(toJson());
+  }
+}
+
+class Maintenance {
+  String? id;
+  String? maintainerUserId;
+  String? maintainerName;
+  String? lastMaintenanceDate;
+  String? nextMaintenanceDate;
+  String? maintenanceNotes;
+  String? status;
+
+  Maintenance(
+      {this.id,
+        this.maintainerUserId,
+        this.maintainerName,
+        this.lastMaintenanceDate,
+        this.nextMaintenanceDate,
+        this.maintenanceNotes,
+        this.status});
+
+  Maintenance.fromJson(Map<String, dynamic> json) {
+    id = json['id'];
+    maintainerUserId = json['maintainerUserId'];
+    maintainerName = json['maintainerName'];
+    lastMaintenanceDate = json['lastMaintenanceDate'];
+    nextMaintenanceDate = json['nextMaintenanceDate'];
+    maintenanceNotes = json['maintenanceNotes'];
+    status = json['status'];
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    data['id'] = this.id;
+    data['maintainerUserId'] = this.maintainerUserId;
+    data['maintainerName'] = this.maintainerName;
+    data['lastMaintenanceDate'] = this.lastMaintenanceDate;
+    data['nextMaintenanceDate'] = this.nextMaintenanceDate;
+    data['maintenanceNotes'] = this.maintenanceNotes;
+    data['status'] = this.status;
+    return data;
   }
 }

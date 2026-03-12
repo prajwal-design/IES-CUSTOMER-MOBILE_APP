@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ies_mobile/models/user_details_model.dart';
@@ -48,56 +49,134 @@ class _DashboardItemState extends State<DashboardItem> {
     return sp.getString("UserId");
   }
 
-  void showPitStatusAlert(double width, List<Sensors> pitS, String displayTitle) {
+  void showPitStatusAlert(
+      double width, List<Sensors> pitS, String displayTitle) {
     showDialog(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              backgroundColor: CustomColors.cardColor,
-              title: Text(
-                displayTitle,
-                style: GoogleFonts.roboto(
-                  color: Colors.white,
-                  fontSize: 27,
-                  fontWeight: FontWeight.w400,
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: CustomColors.cardColor.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 1.5,
                 ),
-                textAlign: TextAlign.center,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              content: SizedBox(
-                width: width * 0.4,
-                height: width,
-                child: ListView.builder(
-                  itemCount: pitS.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      leading: Icon(
-                        Icons.sensors_outlined,
-                        color: Colors.greenAccent[200],
-                        size: 28,
-                      ),
-                      title: Padding(
-                        padding: const EdgeInsets.only(left: 25.0),
-                        child: Text(
-                          pitS[index].name ?? '',
-                          style: GoogleFonts.roboto(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    displayTitle,
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.5,
+                    ),
+                    child: pitS.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Text(
+                              "No sensors found",
+                              style: GoogleFonts.outfit(
+                                color: Colors.white60,
+                                fontSize: 16,
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: pitS.length,
+                            separatorBuilder: (context, index) =>
+                                Divider(color: Colors.white.withOpacity(0.05)),
+                            itemBuilder: (context, index) {
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.sensors_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                                title: Text(
+                                  pitS[index].name ?? 'Unnamed Sensor',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                trailing: Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: Colors.white.withOpacity(0.3),
+                                ),
+                              );
+                            },
                           ),
-                        ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 30, vertical: 12),
+                      backgroundColor: Colors.white.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                    child: Text(
+                      "Close",
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     ).then((value) {
-      setState(() {});
+      if (mounted) setState(() {});
     });
   }
 
@@ -112,76 +191,116 @@ class _DashboardItemState extends State<DashboardItem> {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
 
+    final Color accentColor = widget.filter == "Active"
+        ? Colors.greenAccent
+        : widget.filter == "Inactive"
+            ? Colors.redAccent
+            : widget.filter == "Critical"
+                ? Colors.orangeAccent
+                : Colors.blueAccent;
+
+    final IconData cardIcon = widget.filter == "Active"
+        ? Icons.check_circle_rounded
+        : widget.filter == "Inactive"
+            ? Icons.cancel_rounded
+            : widget.filter == "Critical"
+                ? Icons.warning_rounded
+                : Icons.sensors_rounded;
+
     return InkWell(
       onTap: () {
         if (widget.filter == "All") {
           showPitStatusAlert(width, userInfoProvider!.sensors, "All sensors");
         } else if (widget.filter == "Active") {
-          showPitStatusAlert(width, userInfoProvider!.activeSensors, "Active sensors");
+          showPitStatusAlert(
+              width, userInfoProvider!.activeSensors, "Active sensors");
         } else if (widget.filter == "Critical") {
           showPitStatusAlert(width, [], "Critical sensors");
         } else {
-          showPitStatusAlert(width, userInfoProvider!.inactiveSensors, "Inactive sensors");
+          showPitStatusAlert(
+              width, userInfoProvider!.inactiveSensors, "Inactive sensors");
         }
       },
+      borderRadius: BorderRadius.circular(22),
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        width: double.infinity,
-        height: width * 0.5,
-        decoration: const BoxDecoration(
-          color: CustomColors.cardColor,
-          borderRadius: BorderRadius.all(Radius.circular(10)),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: CustomColors.cardColor.withOpacity(0.45),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: accentColor.withOpacity(0.12),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              margin: EdgeInsets.only(top: width * 0.03),
-              child: CircleAvatar(
-                radius: 35,
-                backgroundColor: widget.filter == "Active"
-                    ? Colors.green[800]
-                    : widget.filter == "Inactive"
-                    ? Colors.red[800]
-                    : widget.filter == "Critical"
-                    ? Colors.yellow[800]
-                    : Colors.blueAccent[800],
-                child: const ImageIcon(
-                  AssetImage("assets/earth_pit.png"),
-                  size: 35,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(cardIcon, color: accentColor, size: 22),
                 ),
-              ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    widget.filter,
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: accentColor.withOpacity(0.8),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
+            const Spacer(),
             Consumer<UserInfoProvider>(
               builder: (context, value, child) {
                 final count = widget.filter == "All"
                     ? value.sensors.length
                     : widget.filter == "Active"
-                    ? value.activeSensors.length
-                    : widget.filter == "Inactive"
-                    ? value.inactiveSensors.length
-                    : 0;
+                        ? value.activeSensors.length
+                        : widget.filter == "Inactive"
+                            ? value.inactiveSensors.length
+                            : 0;
 
                 return Text(
                   count.toString(),
-                  style: GoogleFonts.roboto(
-                    fontSize: 20,
+                  style: GoogleFonts.outfit(
+                    fontSize: 36,
                     color: Colors.white,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.bold,
+                    height: 1,
                   ),
                 );
               },
             ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                widget.displayTitle,
-                style: GoogleFonts.roboto(
-                  fontSize: 20,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w400,
-                ),
+            const SizedBox(height: 4),
+            Text(
+              widget.displayTitle,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                color: Colors.white54,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],

@@ -1,8 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:ies_mobile/webservises/rest_api.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:data_table_2/data_table_2.dart';
 
 import '../providers/report_provider.dart';
 import '../res/colors.dart';
@@ -20,8 +21,6 @@ class _ReportsState extends State<Reports> {
 
   var fDate = "From Date";
   var tDate = "To date";
-  var fTime = "From Time";
-  var tTime = "To Time";
   var deviceID = "";
 
   bool isData = false;
@@ -29,7 +28,7 @@ class _ReportsState extends State<Reports> {
   ReportProvider? reportProvider;
 
   String formatToHHMM(String isoTime) {
-    DateTime dateTime = DateTime.parse(isoTime).toLocal(); // convert to local time
+    DateTime dateTime = DateTime.parse(isoTime).toLocal();
     String hh = dateTime.hour.toString().padLeft(2, '0');
     String mm = dateTime.minute.toString().padLeft(2, '0');
     return "$hh:$mm";
@@ -51,66 +50,70 @@ class _ReportsState extends State<Reports> {
 
     fromDateController = TextEditingController();
     toDateController = TextEditingController();
-    // add these if you want time pickers too:
-    // fromTimeController = TextEditingController();
-    // toTimeController = TextEditingController();
   }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     return Scaffold(
-      body: Column(
-        children: [
-          SizedBox(height: width * 0.03),
-          // showColumn(),
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 10),
-            width: MediaQuery.of(context).size.width,
-            child: ElevatedButton(
-                style: ButtonStyle(
-                  backgroundColor:
-                      WidgetStateProperty.all(CustomColors.appBarColor),
+      backgroundColor: CustomColors.appThemeColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(width),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                child: Column(
+                  children: [
+                    // Generate Report Card
+                    _buildGenerateCard(),
+                    const SizedBox(height: 16),
+                    // Active filters display
+                    if (isData && fDate != "From Date") _buildActiveFilters(),
+                    if (isData && fDate != "From Date")
+                      const SizedBox(height: 16),
+                    // Report content
+                    if (!isData) _buildEmptyState() else showReport(width),
+                  ],
                 ),
-                onPressed: () {
-                  showCustomDialog();
-                },
-                child: Text(
-                  "Generate Report",
-                  style: TextStyle(fontSize: 18, color: Colors.white70),
-                )),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  !isData
-                      ? Text(
-                          "",
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black.withOpacity(0.8),
-                          ),
-                        )
-                      : showReport(width)
-                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: Consumer<ReportProvider>(
         builder: (context, snap, child) {
           if (snap.reportData != null &&
               snap.reportData!.content != null &&
               snap.reportData!.content!.isNotEmpty) {
-            return FloatingActionButton(
-              backgroundColor: CustomColors.appBarColor,
-              child: const Icon(
-                Icons.arrow_downward_outlined,
-                color: Colors.white70,
+            return Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blueAccent.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
+              child: FloatingActionButton.extended(
+                backgroundColor: const Color(0xff1A4B9F),
+                icon: const Icon(Icons.download_rounded,
+                    color: Colors.white, size: 20),
+                label: Text(
+                  "Download",
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 onPressed: () {
                   final startDateTime = DateTime(
                     selectedFromDate.year,
@@ -138,58 +141,172 @@ class _ReportsState extends State<Reports> {
 
                   debugPrint("payload : $payload");
                   RestApi().downloadReport(payload);
-                }
+                },
+              ),
             );
           } else {
-            return const SizedBox.shrink(); // 🧩 Hide FAB when no data
+            return const SizedBox.shrink();
           }
         },
       ),
     );
   }
 
-  Widget showColumn() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-                height: 40,
-                width: MediaQuery.of(context).size.width * 0.37,
-                child: fromDate()),
-            const SizedBox(
-              width: 15,
+  Widget _buildGenerateCard() {
+    return InkWell(
+      onTap: () => showCustomDialog(),
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF2563EB).withOpacity(0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-            SizedBox(
-                height: 40,
-                width: MediaQuery.of(context).size.width * 0.37,
-                child: toDate()),
-            const SizedBox(
-              width: 10,
-            ),
-            InkWell(
-              onTap: () {
-                callGetMethod(fDate, tDate).then((value) {
-                  setState(() {
-                    isData = true;
-                  });
-                });
-              },
-              child: const CircleAvatar(
-                backgroundColor: CustomColors.appBarColor,
-                child: Icon(
-                  Icons.arrow_forward_ios_sharp,
-                  size: 25,
-                  color: Colors.white,
-                ),
-              ),
-            )
           ],
         ),
-      ],
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.analytics_rounded,
+                  color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Generate Report",
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "Select date range & sensor to view logs",
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.arrow_forward_rounded,
+                  color: Colors.white, size: 18),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveFilters() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: CustomColors.cardColor.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.filter_alt_rounded,
+              color: Colors.blueAccent.withOpacity(0.6), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "$fDate  →  $tDate  •  $deviceID",
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: Colors.white54,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          InkWell(
+            onTap: () => showCustomDialog(),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                "Edit",
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  color: Colors.blueAccent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      margin: const EdgeInsets.only(top: 80),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.04),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.analytics_outlined,
+                size: 56, color: Colors.white.withOpacity(0.15)),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "No Reports Yet",
+            style: GoogleFonts.outfit(
+              color: Colors.white54,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Tap the button above to configure\nand generate a new report",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(
+              color: Colors.white30,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -201,140 +318,333 @@ class _ReportsState extends State<Reports> {
             snap.isError ||
             snap.reportData?.content == null ||
             snap.reportData!.content!.isEmpty) {
-          String message = snap.isLoading
-              ? "Loading"
-              : snap.isNoData
-              ? "No Data Found"
-              : snap.isError
-              ? "Something went wrong"
-              : "Data is loading OR No Data Found...";
+          IconData stateIcon;
+          String title;
+          String subtitle;
+
+          if (snap.isLoading) {
+            return Container(
+              margin: const EdgeInsets.only(top: 60),
+              child: Column(
+                children: [
+                  const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation(Colors.blueAccent),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Fetching logs...",
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white54,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          } else if (snap.isNoData) {
+            stateIcon = Icons.inbox_rounded;
+            title = "No Records Found";
+            subtitle = "No data available for the selected period";
+          } else if (snap.isError) {
+            stateIcon = Icons.error_outline_rounded;
+            title = "Unable to Load";
+            subtitle = "Please check your connection and try again";
+          } else {
+            stateIcon = Icons.analytics_outlined;
+            title = "Ready";
+            subtitle = "Configure and generate your report";
+          }
 
           return Container(
-            margin: EdgeInsets.only(top: width * 0.7),
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w500,
-                color: Colors.black.withOpacity(0.8),
-              ),
+            margin: const EdgeInsets.only(top: 60),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.04),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(stateIcon,
+                      size: 48, color: Colors.white.withOpacity(0.2)),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white60,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: Colors.white30,
+                  ),
+                ),
+              ],
             ),
           );
         }
 
         final data = snap.reportData!.content!;
-
-        // Total width is sum of all column widths:
         final double totalWidth = 60 + 80 + 80 + 80 + 120 + 120;
 
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.7,
-
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: totalWidth, // total table width
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // HEADER
-                  Container(
-                    color: Colors.blueGrey.shade50,
-                    child: Row(
-                      children: [
-                        _headerCell("SL.NO", 60),
-                        _headerCell("R", 80),
-                        _headerCell("V", 80),
-                        _headerCell("I", 80),
-                        _headerCell("Date", 120),
-                        _headerCell("Time", 120),
-                      ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  "Results",
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    "${data.length} records",
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.blueAccent.withOpacity(0.8),
                     ),
                   ),
-
-                  // TABLE BODY (vertical scroll)
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: data.length,
-                      shrinkWrap: true,
-                      physics: AlwaysScrollableScrollPhysics(),
-                      itemBuilder: (context, index) {
-                        final element = data[index];
-                        String date = "-";
-                        String time = "-";
-
-                        if (element.timestamp != null) {
-                          final utc = DateTime.parse(element.timestamp!);
-                          final ist = utc.toLocal();
-                          date = DateFormat('yyyy-MM-dd').format(ist);
-                          time = DateFormat('HH:mm').format(ist);
-                          debugPrint("Time coming from server is : "+ time);
-                        }
-
-                        return Row(
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              height: MediaQuery.of(context).size.height * 0.55,
+              decoration: BoxDecoration(
+                color: CustomColors.cardColor.withOpacity(0.45),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white.withOpacity(0.08)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: totalWidth,
+                  child: Column(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white.withOpacity(0.06),
+                              Colors.white.withOpacity(0.03),
+                            ],
+                          ),
+                          border: Border(
+                            bottom: BorderSide(
+                                color: Colors.white.withOpacity(0.08)),
+                          ),
+                        ),
+                        child: Row(
                           children: [
-                            _bodyCell("${index + 1}", 60),
-                            _bodyCell(element.resistance?.toStringAsFixed(2) ?? "-", 80),
-                            _bodyCell(element.voltage?.toStringAsFixed(2) ?? "-", 80),
-                            _bodyCell(element.current?.toStringAsFixed(2) ?? "-", 80),
-                            _bodyCell(date, 120),
-                            _bodyCell(time, 120),
+                            _headerCell("SL", 60),
+                            _headerCell("RES (Ω)", 80),
+                            _headerCell("VOL (V)", 80),
+                            _headerCell("CUR (A)", 80),
+                            _headerCell("DATE", 120),
+                            _headerCell("TIME", 120),
                           ],
-                        );
-                      },
-                    ),
-                  )
-                ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: data.length,
+                          physics: const BouncingScrollPhysics(),
+                          itemBuilder: (context, index) {
+                            final element = data[index];
+                            String date = "-";
+                            String time = "-";
+
+                            if (element.timestamp != null) {
+                              final utc = DateTime.parse(element.timestamp!);
+                              final ist = utc.toLocal();
+                              date = DateFormat('MMM dd, yyyy').format(ist);
+                              time = DateFormat('hh:mm a').format(ist);
+                            }
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                      color: Colors.white.withOpacity(0.04)),
+                                ),
+                                color: index % 2 == 0
+                                    ? Colors.transparent
+                                    : Colors.white.withOpacity(0.015),
+                              ),
+                              child: Row(
+                                children: [
+                                  _bodyCell("${index + 1}", 60, isSlNo: true),
+                                  _bodyCell(
+                                      element.resistance?.toStringAsFixed(2) ??
+                                          "-",
+                                      80),
+                                  _bodyCell(
+                                      element.voltage?.toStringAsFixed(2) ??
+                                          "-",
+                                      80),
+                                  _bodyCell(
+                                      element.current?.toStringAsFixed(2) ??
+                                          "-",
+                                      80),
+                                  _bodyCell(date, 120),
+                                  _bodyCell(time, 120),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         );
-
       },
+    );
+  }
+
+  Widget _buildHeader(double width) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xff1A4B9F),
+            CustomColors.appBarColor,
+          ],
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(35),
+          bottomRight: Radius.circular(35),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "DATA LOGS",
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              color: Colors.white54,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            "Reports",
+            style: GoogleFonts.outfit(
+              fontSize: 26,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _headerCell(String label, double width) {
     return Container(
       width: width,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
-      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(color: Colors.white.withOpacity(0.06), width: 1),
+        ),
+      ),
       child: Text(
         label,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
+        style: GoogleFonts.outfit(
+          fontWeight: FontWeight.w700,
+          color: Colors.white70,
+          fontSize: 12,
+          letterSpacing: 0.5,
         ),
       ),
     );
   }
 
-  Widget _bodyCell(String value, double width) {
+  Widget _bodyCell(String value, double width, {bool isSlNo = false}) {
     return Container(
       width: width,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
-      alignment: Alignment.centerLeft,
-      child: Text(value),
+      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(color: Colors.white.withOpacity(0.03), width: 1),
+        ),
+      ),
+      child: Text(
+        value,
+        style: GoogleFonts.outfit(
+          color: isSlNo ? Colors.white38 : Colors.white.withOpacity(0.85),
+          fontSize: 13,
+          fontWeight: isSlNo ? FontWeight.w400 : FontWeight.w500,
+        ),
+      ),
     );
   }
-
 
   Widget fromDate() {
     return TextField(
       controller: fromDateController,
+      style: GoogleFonts.outfit(color: Colors.white),
       decoration: InputDecoration(
-        contentPadding: const EdgeInsets.all(10),
+        labelText: "From Date",
+        labelStyle: GoogleFonts.outfit(color: Colors.white54),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.12)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.blueAccent, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.12)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
         ),
-        hintText: "From Date",
-        // keep static hint
-        suffixIcon: Icon(
-          Icons.calendar_today,
-          color: Colors.black.withOpacity(0.5),
+        suffixIcon: Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: const Icon(Icons.calendar_today_rounded,
+              color: Colors.blueAccent, size: 18),
         ),
       ),
       readOnly: true,
@@ -345,18 +655,24 @@ class _ReportsState extends State<Reports> {
   Widget toDate() {
     return TextField(
       controller: toDateController,
+      style: GoogleFonts.outfit(color: Colors.white),
       decoration: InputDecoration(
-        contentPadding: const EdgeInsets.all(10),
+        labelText: "To Date",
+        labelStyle: GoogleFonts.outfit(color: Colors.white54),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.12)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.blueAccent, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.12)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
         ),
-        hintText: "To Date",
-        suffixIcon: Icon(
-          Icons.calendar_today,
-          color: Colors.black.withOpacity(0.5),
+        suffixIcon: Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: const Icon(Icons.calendar_today_rounded,
+              color: Colors.blueAccent, size: 18),
         ),
       ),
       readOnly: true,
@@ -364,40 +680,8 @@ class _ReportsState extends State<Reports> {
     );
   }
 
-  Widget fromTime() {
-    return TextField(
-      controller: fromDateController,
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.all(10),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.12)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.12)),
-        ),
-        hintText: fTime,
-        hintStyle: TextStyle(
-          color: Colors.black.withOpacity(0.5),
-          fontWeight: FontWeight.w500,
-        ),
-        suffixIcon: Icon(
-          Icons.arrow_drop_down_circle_outlined,
-          color: Colors.black.withOpacity(0.5),
-        ),
-      ),
-      obscureText: false,
-      readOnly: true,
-      onTap: () {
-        _selectTime(context, 'from');
-      },
-    );
-  }
-
   DateTime selectedFromDate = DateTime.now();
   DateTime selectedToDate = DateTime.now();
-
-  TimeOfDay selectedFromTime = TimeOfDay.now();
-  TimeOfDay selectedToTime = TimeOfDay.now();
 
   Future _selectDate(BuildContext context, String toOrFrom) async {
     final DateTime? picked = await showDatePicker(
@@ -413,38 +697,11 @@ class _ReportsState extends State<Reports> {
         if (toOrFrom == "from") {
           selectedFromDate = picked;
           fDate = DateFormat('yyyy-MM-dd').format(selectedFromDate);
-          fromDateController!.text = fDate; // ✅ update controller
+          fromDateController!.text = fDate;
         } else {
           selectedToDate = picked;
           tDate = DateFormat('yyyy-MM-dd').format(selectedToDate);
-          toDateController!.text = tDate; // ✅ update controller
-        }
-      });
-    }
-  }
-
-  Future _selectTime(BuildContext context, String toOrFrom) async {
-    TimeOfDay? pickedTime = await showTimePicker(
-      context: context,
-      initialTime: toOrFrom == 'from' ? selectedFromTime : selectedToTime,
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
-          child: child!,
-        );
-      },
-    );
-
-    if (pickedTime != null) {
-      setState(() {
-        if (toOrFrom == 'from') {
-          selectedFromTime = pickedTime;
-          fTime = "${pickedTime.format(context)}:00";
-          debugPrint("Selected From Time $fTime");
-        } else {
-          selectedToTime = pickedTime;
-          tTime = "${pickedTime.format(context)}:00";
-          debugPrint("Selected To Time $tTime");
+          toDateController!.text = tDate;
         }
       });
     }
@@ -452,104 +709,182 @@ class _ReportsState extends State<Reports> {
 
   Future callGetMethod(String fDate, String tDate) async {
     final DateTime startDateTime = DateTime(
-        selectedFromDate.year, selectedFromDate.month, selectedFromDate.day).toUtc();
+            selectedFromDate.year, selectedFromDate.month, selectedFromDate.day)
+        .toUtc();
 
     final DateTime endDateTime = DateTime(
       selectedToDate.year,
       selectedToDate.month,
       selectedToDate.day,
       23,
-      // hour
       59,
-      // minute
       59,
-      // second
       999,
-      // millisecond
-      999, // microsecond (optional, ensures very end of the day)
+      999,
     ).toUtc();
 
     final payload = {
-      "deviceId": deviceID, // Use dynamic deviceId if needed
+      "deviceId": deviceID,
       "startTime": startDateTime.toIso8601String(),
       "endTime": endDateTime.toIso8601String(),
       "isCriticalReport": false,
     };
 
     debugPrint("Calling getReports with: $payload");
-
     await reportProvider!.getReports(payload);
   }
 
   Future showCustomDialog() {
     return showDialog(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setStateDialog) {
-            return AlertDialog(
-              alignment: Alignment.center,
-              title: Center(child: const Text("Generate report")),
-              content: Column(
-                mainAxisSize: MainAxisSize.min, // shrink to fit content
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 40,
-                    width: MediaQuery.of(context).size.width,
-                    child: fromDate(),
-                  ),
-                  SizedBox(height: 10),
-                  SizedBox(
-                    height: 40,
-                    width: MediaQuery.of(context).size.width,
-                    child: toDate(),
-                  ),
-                  SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(8),
+            return BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+              child: Dialog(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: CustomColors.cardColor.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                      width: 1.5,
                     ),
-                    child: DropdownButton<String>(
-                      hint: const Text("Select sensor"),
-                      underline: const SizedBox(),
-                      value: deviceID.isEmpty ? null : deviceID,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(
-                          value: "IES-0001",
-                          child: Text("IES-0001"),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        DropdownMenuItem(
-                          value: "IES-0002",
-                          child: Text("IES-0002"),
+                        child: const Icon(Icons.tune_rounded,
+                            color: Colors.blueAccent, size: 28),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        "Configure Report",
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
-                      onChanged: (item) {
-                        setStateDialog(() => deviceID = item!);
-                      },
-                    ),
-                  )
-                ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Select date range and sensor",
+                        style: GoogleFonts.outfit(
+                          color: Colors.white38,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      fromDate(),
+                      const SizedBox(height: 14),
+                      toDate(),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          border:
+                              Border.all(color: Colors.white.withOpacity(0.1)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: DropdownButton<String>(
+                          dropdownColor: CustomColors.cardColor,
+                          hint: Text("Select sensor",
+                              style: GoogleFonts.outfit(
+                                  color: Colors.white54, fontSize: 14)),
+                          underline: const SizedBox(),
+                          value: deviceID.isEmpty ? null : deviceID,
+                          isExpanded: true,
+                          icon: const Icon(Icons.sensors_rounded,
+                              color: Colors.blueAccent, size: 20),
+                          style: GoogleFonts.outfit(color: Colors.white),
+                          items: const [
+                            DropdownMenuItem(
+                              value: "IES-0001",
+                              child: Text("IES-0001"),
+                            ),
+                            DropdownMenuItem(
+                              value: "IES-0002",
+                              child: Text("IES-0002"),
+                            ),
+                          ],
+                          onChanged: (item) {
+                            setStateDialog(() => deviceID = item!);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(
+                                      color: Colors.white.withOpacity(0.08)),
+                                ),
+                              ),
+                              child: Text("Cancel",
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white54,
+                                    fontWeight: FontWeight.w600,
+                                  )),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueAccent,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                                elevation: 0,
+                              ),
+                              onPressed: () async {
+                                await callGetMethod(fDate, tDate);
+                                setState(() {
+                                  isData = true;
+                                });
+                                Navigator.pop(dialogContext);
+                              },
+                              child: Text("Generate Report",
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                  )),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => {Navigator.pop(context)},
-                  child: const Text("Cancel"),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await callGetMethod(fDate, tDate);
-                    setState(() {
-                      isData = true;
-                    });
-                    Navigator.pop(dialogContext);
-                  },
-                  child: const Text("Generate"),
-                ),
-              ],
             );
           },
         );
