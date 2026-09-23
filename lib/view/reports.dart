@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/report_provider.dart';
+import '../providers/user_info_provider.dart';
 import '../res/colors.dart';
 
 class Reports extends StatefulWidget {
@@ -26,6 +27,7 @@ class _ReportsState extends State<Reports> {
   bool isData = false;
 
   ReportProvider? reportProvider;
+  UserInfoProvider? userInfoProvider;
 
   String formatToHHMM(String isoTime) {
     DateTime dateTime = DateTime.parse(isoTime).toLocal();
@@ -39,6 +41,7 @@ class _ReportsState extends State<Reports> {
     super.initState();
 
     reportProvider = Provider.of<ReportProvider>(context, listen: false);
+    userInfoProvider = Provider.of<UserInfoProvider>(context, listen: false);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       reportProvider!.reportData = null;
@@ -734,6 +737,94 @@ class _ReportsState extends State<Reports> {
     await reportProvider!.getReports(payload);
   }
 
+  Future<void> _showSensorSearchDialog(
+      BuildContext context,
+      UserInfoProvider provider,
+      void Function(void Function()) setStateDialog) async {
+    String searchQuery = '';
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateSearch) {
+            final filteredList = provider.sensors.where((s) {
+              final name = s.name?.toLowerCase() ?? '';
+              final id = s.id?.toLowerCase() ?? '';
+              final query = searchQuery.toLowerCase();
+              return name.contains(query) || id.contains(query);
+            }).toList();
+
+            return Dialog(
+              backgroundColor: CustomColors.cardColor,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: Column(
+                  children: [
+                    TextField(
+                      style: GoogleFonts.outfit(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: "Search sensor...",
+                        hintStyle: GoogleFonts.outfit(color: Colors.white54),
+                        prefixIcon:
+                            const Icon(Icons.search, color: Colors.blueAccent),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide:
+                              BorderSide(color: Colors.white.withOpacity(0.1)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide:
+                              const BorderSide(color: Colors.blueAccent),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onChanged: (val) {
+                        setStateSearch(() => searchQuery = val);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filteredList.isEmpty
+                          ? Center(
+                              child: Text("No sensors found",
+                                  style: GoogleFonts.outfit(
+                                      color: Colors.white54)))
+                          : ListView.builder(
+                              itemCount: filteredList.length,
+                              itemBuilder: (context, index) {
+                                final sensor = filteredList[index];
+                                return ListTile(
+                                  title: Text(sensor.name ?? 'Unnamed Sensor',
+                                      style: GoogleFonts.outfit(
+                                          color: Colors.white)),
+                                  subtitle: Text(sensor.id ?? '',
+                                      style: GoogleFonts.outfit(
+                                          color: Colors.white54, fontSize: 12)),
+                                  onTap: () {
+                                    Navigator.pop(context, sensor.name);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (selected != null) {
+      setStateDialog(() => deviceID = selected);
+    }
+  }
+
   Future showCustomDialog() {
     return showDialog(
       context: context,
@@ -798,37 +889,64 @@ class _ReportsState extends State<Reports> {
                       toDate(),
                       const SizedBox(height: 14),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
                         decoration: BoxDecoration(
                           border:
                               Border.all(color: Colors.white.withOpacity(0.1)),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: DropdownButton<String>(
-                          dropdownColor: CustomColors.cardColor,
-                          hint: Text("Select sensor",
-                              style: GoogleFonts.outfit(
-                                  color: Colors.white54, fontSize: 14)),
-                          underline: const SizedBox(),
-                          value: deviceID.isEmpty ? null : deviceID,
-                          isExpanded: true,
-                          icon: const Icon(Icons.sensors_rounded,
-                              color: Colors.blueAccent, size: 20),
-                          style: GoogleFonts.outfit(color: Colors.white),
-                          items: const [
-                            DropdownMenuItem(
-                              value: "IES-0001",
-                              child: Text("IES-0001"),
+                        child: Consumer<UserInfoProvider>(
+                            builder: (context, provider, child) {
+                          if (provider.isLoading) {
+                            return const Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Center(
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white)),
+                            );
+                          }
+                          String displayText = "Select sensor";
+                          if (deviceID.isNotEmpty) {
+                            final matches = provider.sensors
+                                .where((s) => s.name == deviceID)
+                                .toList();
+                            if (matches.isNotEmpty) {
+                              displayText = matches.first.name ?? deviceID;
+                            } else {
+                              displayText = deviceID;
+                            }
+                          }
+
+                          return InkWell(
+                            onTap: () => _showSensorSearchDialog(
+                                context, provider, setStateDialog),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 8),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.sensors_rounded,
+                                      color: Colors.blueAccent, size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      displayText,
+                                      style: GoogleFonts.outfit(
+                                          color: deviceID.isEmpty
+                                              ? Colors.white54
+                                              : Colors.white,
+                                          fontSize: 16),
+                                    ),
+                                  ),
+                                  const Icon(Icons.arrow_drop_down,
+                                      color: Colors.white54),
+                                ],
+                              ),
                             ),
-                            DropdownMenuItem(
-                              value: "IES-0002",
-                              child: Text("IES-0002"),
-                            ),
-                          ],
-                          onChanged: (item) {
-                            setStateDialog(() => deviceID = item!);
-                          },
-                        ),
+                          );
+                        }),
                       ),
                       const SizedBox(height: 24),
                       Row(

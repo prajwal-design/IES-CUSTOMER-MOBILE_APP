@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:ies_mobile/models/previous_sensor_value_model.dart';
+import 'package:ies_mobile/services/secure_storage_service.dart';
 import 'package:ies_mobile/utils/constants.dart';
 import 'package:ies_mobile/webservises/rest_api.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class MqttSensorDataProvider extends ChangeNotifier {
   bool isLoading = true;
@@ -15,26 +15,38 @@ class MqttSensorDataProvider extends ChangeNotifier {
   double V = 0.0;
   double I = 0.0;
 
+  
+
   WebSocket? _socket;
   String? _currentSensorId;
 
-  Future getPreviousResult(String sensorName) async {
-    PreviousSensorValueModel result =
-        await RestApi().getSensorPreviousValue(sensorName);
-
-    debugPrint("inside getPreviousResult :");
-
-    R = result.R;
-    V = result.V;
-    I = result.I;
-    isLoading = false;
-
-    notifyListeners();
-  }
-
-  Future<void> getWebSocketData(String? sensorId, String? sensorName) async {
+  Future<void> fetchAndConnect(String sensorId, String sensorName) async {
     isLoading = true;
     notifyListeners();
+
+    try {
+      PreviousSensorValueModel result =
+          await RestApi().getSensorPreviousValue(sensorName);
+
+      debugPrint("inside getPreviousResult :");
+
+      R = result.R;
+      V = result.V;
+      I = result.I;
+      isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error fetching previous result: $e");
+    }
+
+    await getWebSocketData(sensorId, sensorName, showLoading: false);
+  }
+
+  Future<void> getWebSocketData(String? sensorId, String? sensorName, {bool showLoading = true}) async {
+    if (showLoading) {
+      isLoading = true;
+      notifyListeners();
+    }
 
     if (sensorId == null || sensorName == null) {
       debugPrint(
@@ -56,8 +68,7 @@ class MqttSensorDataProvider extends ChangeNotifier {
     await _socket?.close();
     _socket = null;
 
-    final sp = await SharedPreferences.getInstance();
-    final token = sp.getString("AccessToken");
+    final token = await SecureStorageService.getAccessToken();
 
     try {
       _socket = await WebSocket.connect("${ApiEndPoints.webSocketUrl}$token");
@@ -65,25 +76,29 @@ class MqttSensorDataProvider extends ChangeNotifier {
 
       _socket!.listen(
         (data) {
-          final decodedData = jsonDecode(data);
-          // Match against either ID or Name to be safe
-          if (decodedData["sensor"] == sensorId ||
-              decodedData["sensor"] == sensorName) {
-            debugPrint(
-                'sensor data for $sensorName ($sensorId) : $decodedData');
+          try {
+            final decodedData = jsonDecode(data);
+            // Match against either ID or Name to be safe
+            if (decodedData["sensor"] == sensorId ||
+                decodedData["deviceId"] == sensorName) {
+              debugPrint(
+                  'sensor data for $sensorName ($sensorId) : $decodedData');
 
-            V = (decodedData["V"] ?? 0).toDouble();
-            I = (decodedData["I"] ?? 0).toDouble();
-            R = (decodedData["R"] ?? 0).toDouble();
+              V = double.tryParse(decodedData["V"]?.toString() ?? "0") ?? 0.0;
+              I = double.tryParse(decodedData["I"]?.toString() ?? "0") ?? 0.0;
+              R = double.tryParse(decodedData["R"]?.toString() ?? "0") ?? 0.0;
 
-            isLoading = false;
-            notifyListeners();
+              isLoading = false;
+              notifyListeners();
+            }
+          } catch (e) {
+            debugPrint("Error parsing websocket payload: $e");
           }
         },
         onDone: () {
           debugPrint('WebSocket connection closed');
           if (_currentSensorId == sensorId) {
-            isLoading = true;
+            isLoading = false;
             notifyListeners();
           }
           _socket = null;

@@ -10,8 +10,6 @@ class UserInfoProvider extends ChangeNotifier {
   bool isError = false;
   List<Systems> systemsList = [];
   List<Sensors> sensors = [];
-  List<Sensors> activeSensors = [];
-  List<Sensors> inactiveSensors = [];
 
   Future<void> getUserInfo(id) async {
     try {
@@ -42,35 +40,6 @@ class UserInfoProvider extends ChangeNotifier {
       debugPrint("Total Systems: ${systemsList.length}");
       debugPrint("Total Sensors: ${sensors.length}");
 
-      // Clear previous lists (use .clear() to preserve list identity)
-      activeSensors.clear();
-      inactiveSensors.clear();
-
-      final nowUtc = DateTime.now().toUtc();
-
-      for (var sensor in sensors) {
-        if (sensor.lastUpdatedAt != null && sensor.lastUpdatedAt!.isNotEmpty) {
-          // parse (assumes ISO-8601 string, possibly with 'Z')
-          DateTime lastUpdated = DateTime.parse(sensor.lastUpdatedAt!).toUtc();
-
-          final difference = nowUtc.difference(lastUpdated);
-
-          if (difference.inMinutes > 10) {
-            inactiveSensors.add(sensor);
-          } else {
-            activeSensors.add(sensor);
-          }
-        } else {
-          // treat sensors with null/empty lastUpdatedAt as inactive
-          inactiveSensors.add(sensor);
-        }
-      }
-
-      debugPrint(
-          "Active Sensors: ${jsonEncode(activeSensors.map((e) => e.toJson()).toList())}");
-      debugPrint(
-          "Inactive Sensors: ${jsonEncode(inactiveSensors.map((e) => e.toJson()).toList())}");
-
       notifyListeners();
     } catch (e, stackTrace) {
       debugPrint("system error $e");
@@ -84,8 +53,6 @@ class UserInfoProvider extends ChangeNotifier {
   // Use .clear() so UI references keep the same list instance
   void resetActiveInactiveSensors() {
     debugPrint("resetActiveInactiveSensors called");
-    activeSensors.clear();
-    inactiveSensors.clear();
     notifyListeners();
   }
 }

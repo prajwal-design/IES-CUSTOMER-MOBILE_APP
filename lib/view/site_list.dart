@@ -6,6 +6,8 @@ import 'package:ies_mobile/utils/string_utils.dart';
 import 'package:ies_mobile/view/system_list.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ies_mobile/models/user_details_model.dart';
+import 'package:ies_mobile/webservises/rest_api.dart';
 
 class SiteList extends StatefulWidget {
   const SiteList({super.key});
@@ -113,8 +115,11 @@ class _SiteListState extends State<SiteList> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      SystemList(systemList: systems),
+                                  builder: (context) => SystemList(
+                                    systemList: systems,
+                                    criticalResistanceValue:
+                                        site.criticalResistanceValue,
+                                  ),
                                 ),
                               );
                             }
@@ -184,6 +189,12 @@ class _SiteListState extends State<SiteList> {
                                         ],
                                       ),
                                     ),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_rounded),
+                                      color: Colors.blueAccent.withOpacity(0.8),
+                                      iconSize: 20,
+                                      onPressed: () => _editSite(context, site),
+                                    ),
                                     Icon(
                                       Icons.arrow_forward_ios_rounded,
                                       color: Colors.white.withOpacity(0.2),
@@ -198,19 +209,28 @@ class _SiteListState extends State<SiteList> {
                                     color: Colors.white.withOpacity(0.04),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: Row(
+                                  width: MediaQuery.of(context).size.width,
+                                  child: Wrap(
+                                    spacing: 16,
+                                    runSpacing: 8,
                                     children: [
                                       _buildStatChip(
                                         icon: Icons.settings_suggest_rounded,
                                         label: "$systemCount Systems",
                                         color: Colors.greenAccent,
                                       ),
-                                      const SizedBox(width: 16),
                                       _buildStatChip(
                                         icon: Icons.sensors_rounded,
                                         label: "$sensorCount Earth Pits",
                                         color: Colors.orangeAccent,
                                       ),
+                                      if (site.criticalResistanceValue != null)
+                                        _buildStatChip(
+                                          icon: Icons.warning_rounded,
+                                          label:
+                                              "${site.criticalResistanceValue} \u03A9",
+                                          color: Colors.redAccent,
+                                        ),
                                     ],
                                   ),
                                 ),
@@ -339,5 +359,118 @@ class _SiteListState extends State<SiteList> {
         ),
       ),
     );
+  }
+
+  Future<void> _editSite(BuildContext context, Sites site) async {
+    final TextEditingController controller = TextEditingController(
+        text: site.criticalResistanceValue?.toString() ?? "");
+    final _formKey = GlobalKey<FormState>();
+    bool isSaving = false;
+
+    bool? result = await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: CustomColors.cardColor,
+              title: Text(
+                "Edit Site",
+                style: GoogleFonts.outfit(color: Colors.white),
+              ),
+              content: Form(
+                key: _formKey,
+                child: TextFormField(
+                  controller: controller,
+                  style: GoogleFonts.outfit(color: Colors.white),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: "Critical Resistance Value (\u03A9)",
+                    labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white38),
+                    ),
+                    focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blueAccent),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Please enter a value";
+                    }
+                    if (double.tryParse(value) == null) {
+                      return "Please enter a valid number";
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed:
+                      isSaving ? null : () => Navigator.pop(context, false),
+                  child: Text(
+                    "Cancel",
+                    style: GoogleFonts.outfit(color: Colors.white54),
+                  ),
+                ),
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (_formKey.currentState!.validate()) {
+                            setState(() {
+                              isSaving = true;
+                            });
+                            try {
+                              final data = {
+                                "id": site.id,
+                                "name": site.name,
+                                "criticalResistanceValue":
+                                    double.parse(controller.text)
+                              };
+                              await RestApi().updateSite(data);
+                              Navigator.pop(context, true);
+                            } catch (e) {
+                              setState(() {
+                                isSaving = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text("Failed to update site")),
+                              );
+                            }
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation(Colors.blueAccent),
+                          ),
+                        )
+                      : Text(
+                          "Save",
+                          style: GoogleFonts.outfit(color: Colors.blueAccent),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Site updated successfully")),
+      );
+      getUserInfo();
+    }
   }
 }

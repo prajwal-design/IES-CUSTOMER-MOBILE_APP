@@ -1,27 +1,26 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:expansion_tile_card/expansion_tile_card.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ies_mobile/models/user_details_model.dart';
-import 'package:ies_mobile/utils/constants.dart';
 import 'package:ies_mobile/webservises/rest_api.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/mqtt_sensor_data_provider.dart';
 import '../providers/sensor_provider.dart';
 import '../res/colors.dart';
 import '../utils/string_utils.dart';
 import 'inc_maintainance_and_prediction.dart';
+import '../providers/user_info_provider.dart';
+import '../providers/pit_status_provider.dart';
 
 class SensorList extends StatefulWidget {
   final List<Sensors> sensors;
   final String systemName;
+  final double? criticalResistanceValue;
   const SensorList(
-      {super.key, required this.sensors, required this.systemName});
+      {super.key, required this.sensors, required this.systemName, this.criticalResistanceValue});
 
   @override
   State<SensorList> createState() => _SensorListState();
@@ -35,6 +34,14 @@ class _SensorListState extends State<SensorList> {
   bool _isLoadingMaintenance = true;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  final Map<int, GlobalKey<ExpansionTileCardState>> _cardKeys = {};
+
+  GlobalKey<ExpansionTileCardState> _getCardKey(int index) {
+    if (!_cardKeys.containsKey(index)) {
+      _cardKeys[index] = GlobalKey<ExpansionTileCardState>();
+    }
+    return _cardKeys[index]!;
+  }
 
   List<Sensors> get _filteredSensors {
     if (_searchQuery.isEmpty) return widget.sensors;
@@ -42,14 +49,6 @@ class _SensorListState extends State<SensorList> {
       final name = (sensor.name ?? "").toLowerCase();
       return name.contains(_searchQuery.toLowerCase());
     }).toList();
-  }
-
-  void _handleTileTap(
-    int index,
-  ) {
-    setState(() {
-      _expandedTileIndex = index;
-    });
   }
 
   @override
@@ -123,7 +122,6 @@ class _SensorListState extends State<SensorList> {
                       ),
                     )
                   : ListView.builder(
-                      key: Key(_expandedTileIndex.toString()),
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
                       physics: const BouncingScrollPhysics(),
                       itemCount: _filteredSensors.length,
@@ -150,7 +148,7 @@ class _SensorListState extends State<SensorList> {
                               child: const Icon(Icons.sensors_rounded,
                                   color: Colors.greenAccent, size: 24),
                             ),
-                            key: Key(index.toString()),
+                            key: _getCardKey(index),
                             initiallyExpanded: (index == _expandedTileIndex),
                             animateTrailing: true,
                             baseColor: CustomColors.cardColor.withOpacity(0.4),
@@ -159,13 +157,20 @@ class _SensorListState extends State<SensorList> {
                             elevation: 0,
                             shadowColor: Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
-                            title: Text(
-                              sensor.name!.toHumanReadable(),
-                              style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    sensor.name!.toHumanReadable(),
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                _buildSensorStatusBadge(sensor, index),
+                              ],
                             ),
                             children: [
                               Padding(
@@ -274,13 +279,21 @@ class _SensorListState extends State<SensorList> {
                               ),
                             ],
                             onExpansionChanged: (value) {
-                              mqttSensorDataProvider!
-                                  .getPreviousResult(sensor.name!);
-                              _handleTileTap(index);
                               if (value) {
+                                if (_expandedTileIndex != -1 && _expandedTileIndex != index) {
+                                  _cardKeys[_expandedTileIndex]?.currentState?.collapse();
+                                }
+                                setState(() {
+                                  _expandedTileIndex = index;
+                                });
                                 mqttSensorDataProvider!
-                                    .getWebSocketData(sensor.id!, sensor.name!);
+                                    .fetchAndConnect(sensor.id!, sensor.name!);
                               } else {
+                                if (_expandedTileIndex == index) {
+                                  setState(() {
+                                    _expandedTileIndex = -1;
+                                  });
+                                }
                                 mqttSensorDataProvider!.disposeSocket();
                               }
                             },
@@ -647,6 +660,58 @@ class _SensorListState extends State<SensorList> {
           border: InputBorder.none,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSensorStatusBadge(Sensors sensor, int index) {
+    if (_expandedTileIndex != index) {
+      return const SizedBox.shrink();
+    }
+
+    return Consumer2<UserInfoProvider, PitStatusProvider>(
+      builder: (context, userInfo, pitStatus, child) {
+        return Consumer<MqttSensorDataProvider>(
+          builder: (context, mqttData, child) {
+            if (_expandedTileIndex == index && !mqttData.isLoading) {
+              double rValue = mqttData.R;
+              double threshold = widget.criticalResistanceValue ?? 3.0;
+              if (rValue >= threshold) {
+                return _statusBadgeLabel("CRITICAL", Colors.redAccent);
+              }
+              return _statusBadgeLabel("ACTIVE", Colors.greenAccent);
+            }
+
+            // Otherwise fall back to global providers
+            bool isCritical = pitStatus.data?.criticalSensors?.any((s) => s.id == sensor.id) ?? false;
+            if (isCritical) return _statusBadgeLabel("CRITICAL", Colors.redAccent);
+
+            bool isActive = pitStatus.data?.activeSensors?.any((s) => s.id == sensor.id) ?? false;
+            if (isActive) return _statusBadgeLabel("ACTIVE", Colors.greenAccent);
+
+            return _statusBadgeLabel("INACTIVE", Colors.grey);
+          }
+        );
+      }
+    );
+  }
+
+  Widget _statusBadgeLabel(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.outfit(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+          letterSpacing: 0.5,
         ),
       ),
     );

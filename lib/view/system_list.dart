@@ -12,8 +12,9 @@ import '../utils/string_utils.dart';
 
 class SystemList extends StatefulWidget {
   final List<Systems> systemList;
+  final double? criticalResistanceValue;
 
-  const SystemList({super.key, required this.systemList});
+  const SystemList({super.key, required this.systemList, this.criticalResistanceValue});
 
   @override
   State<SystemList> createState() => _SystemListState();
@@ -111,6 +112,7 @@ class _SystemListState extends State<SystemList> {
                                     builder: (context) => SensorList(
                                       sensors: sensors!,
                                       systemName: system.name!,
+                                      criticalResistanceValue: widget.criticalResistanceValue,
                                     ),
                                   ),
                                 );

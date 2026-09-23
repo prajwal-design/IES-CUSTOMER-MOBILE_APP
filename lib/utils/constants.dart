@@ -1,26 +1,16 @@
-class Constants {
-  static String BaseUrl = "";
-  static String apiKey =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoicHJhandhbG5haWs1MkBnbWFpbC5jb20iLCJleHBpcmVzIjoxNzE2MjgzNDgyLjc3NTY3MTV9.ERaSSYNAhZlaMQqFLM6CYR4pNeodC_st0oLjHTnxnaQ";
-  static String bearerToken =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoicHJhandhbG5haWs1MkBnbWFpbC5jb20iLCJleHBpcmVzIjoxNzE2Mjg0NjUxLjkxMTYwNzV9.4QXpBDGBMFWNyMQFWu9otbD_irdksQsOnXCvQVc2Eu4";
-  static String CUSTOMER_ID = "CustomerId";
-}
+
+import 'package:ies_mobile/config/app_config.dart';
 
 class ApiEndPoints {
-  static String BaseUrl = "https://iespoc.soukhyatech.com/api";
-  // static String BaseUrl = "http://192.168.1.46:8080";
+  static String get BaseUrl => AppConfig.baseUrl;
 
   static String login = "$BaseUrl/user-service/api/auth/login";
   static String forgotPass = "$BaseUrl/v1/User/forgot_password";
   static String verifyEmail = "$BaseUrl/v1/User/verify_email";
   static String changePass = "$BaseUrl/v1/User/change_password";
-  static String getDashBoardData = "$BaseUrl/v1/Dashboard/dashboard";
+  static String getDashBoardData = "$BaseUrl/be-service/ies/dashboard";
   static String getUserDetails = "$BaseUrl/be-service/ies/users/";
-  static String webSocketUrl =
-      "ws://103.49.103.118:8080/be-service/ws/sensors?token=";
-  // static String webSocketUrl =
-  //     "ws://192.168.1.46:8080/be-service/ws/sensors?token=";
+  static String get webSocketUrl => AppConfig.webSocketBaseUrl;
   static String getReports =
       "$BaseUrl/be-service/sensors/reports?page=0&size=1000";
 
@@ -33,6 +23,7 @@ class ApiEndPoints {
   static String getSensorsWithMaintenance =
       "$BaseUrl/be-service/sensors?page=0&size=1000";
   static String downloadReport = "$BaseUrl/be-service/sensors/reports/download";
+  static String updateSite = "$BaseUrl/be-service/sites";
 
   static String customerSystems = "$BaseUrl/rest/v1/rpc/get_customer_systems";
   static String adminSystems = "$BaseUrl/rest/v1/rpc/get_systems";

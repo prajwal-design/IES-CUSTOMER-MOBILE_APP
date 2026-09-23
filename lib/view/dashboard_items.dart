@@ -4,9 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:ies_mobile/models/user_details_model.dart';
 import 'package:ies_mobile/providers/user_info_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/all_sensor_model.dart';
 import '../providers/all_sensor_provider.dart';
 import '../providers/pit_status_provider.dart';
 import '../res/colors.dart';
@@ -38,15 +36,6 @@ class _DashboardItemState extends State<DashboardItem> {
     pitStatusProvider = Provider.of<PitStatusProvider>(context, listen: false);
     allSensorProvider = Provider.of<AllSensorProvider>(context, listen: false);
     userInfoProvider = Provider.of<UserInfoProvider>(context, listen: false);
-
-    getUserID().then((value) {
-      pitStatusProvider!.getPitStatusFromProvider(value);
-    });
-  }
-
-  Future getUserID() async {
-    var sp = await SharedPreferences.getInstance();
-    return sp.getString("UserId");
   }
 
   void showPitStatusAlert(
@@ -213,12 +202,12 @@ class _DashboardItemState extends State<DashboardItem> {
           showPitStatusAlert(width, userInfoProvider!.sensors, "All sensors");
         } else if (widget.filter == "Active") {
           showPitStatusAlert(
-              width, userInfoProvider!.activeSensors, "Active sensors");
+              width, pitStatusProvider?.data?.activeSensors ?? [], "Active sensors");
         } else if (widget.filter == "Critical") {
-          showPitStatusAlert(width, [], "Critical sensors");
+          showPitStatusAlert(width, pitStatusProvider?.data?.criticalSensors ?? [], "Critical sensors");
         } else {
           showPitStatusAlert(
-              width, userInfoProvider!.inactiveSensors, "Inactive sensors");
+              width, pitStatusProvider?.data?.inactiveSensors ?? [], "Inactive sensors");
         }
       },
       borderRadius: BorderRadius.circular(22),
@@ -273,15 +262,17 @@ class _DashboardItemState extends State<DashboardItem> {
               ],
             ),
             const Spacer(),
-            Consumer<UserInfoProvider>(
-              builder: (context, value, child) {
+            Consumer2<UserInfoProvider, PitStatusProvider>(
+              builder: (context, userInfo, pitStatus, child) {
                 final count = widget.filter == "All"
-                    ? value.sensors.length
+                    ? userInfo.sensors.length
                     : widget.filter == "Active"
-                        ? value.activeSensors.length
+                        ? (pitStatus.data?.activeSensors?.length ?? pitStatus.data?.status?.active ?? 0)
                         : widget.filter == "Inactive"
-                            ? value.inactiveSensors.length
-                            : 0;
+                            ? (pitStatus.data?.inactiveSensors?.length ?? pitStatus.data?.status?.inactive ?? 0)
+                            : widget.filter == "Critical"
+                                ? (pitStatus.data?.criticalSensors?.length ?? pitStatus.data?.status?.critical ?? 0)
+                                : 0;
 
                 return Text(
                   count.toString(),

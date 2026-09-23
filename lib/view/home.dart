@@ -1,12 +1,13 @@
 import "dart:io";
+import "dart:async";
 
 import "package:flutter/material.dart";
 import "package:google_fonts/google_fonts.dart";
 import "package:ies_mobile/providers/user_info_provider.dart";
+import "package:ies_mobile/services/secure_storage_service.dart";
 import "package:ies_mobile/view/login_screen.dart";
 import "package:ies_mobile/view/reports.dart";
 import "package:ies_mobile/view/site_list.dart";
-import "package:ies_mobile/view_model/firebase_services.dart";
 import "package:jwt_decoder/jwt_decoder.dart";
 import "package:provider/provider.dart";
 import "package:shared_preferences/shared_preferences.dart";
@@ -14,6 +15,7 @@ import "package:shared_preferences/shared_preferences.dart";
 import "../providers/loin_logout.dart";
 import "../providers/pit_status_provider.dart";
 import "../res/colors.dart";
+import "../config/app_config.dart";
 import "dashboard_items.dart";
 
 class Home extends StatefulWidget {
@@ -29,45 +31,81 @@ class _HomeState extends State<Home> {
   SharedPreferences? sharedPreferences;
   LoginLogout? log;
   PitStatusProvider? pitStatusProvider;
-  FireBaseServices fireBaseServices = FireBaseServices();
   UserInfoProvider? userInfoProvider;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     userInfoProvider = Provider.of<UserInfoProvider>(context, listen: false);
-    fireBaseServices.requestNotificationPermission();
-    fireBaseServices.firebaseInit();
-    fireBaseServices.getFcmTocken().then((value) {
-      debugPrint('FCM : $value');
-    });
+    pitStatusProvider = Provider.of<PitStatusProvider>(context, listen: false);
+
     log = Provider.of<LoginLogout>(context, listen: false);
     getUserInfo().then((val) => {
           setState(() {}),
         });
+
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: AppConfig.dashboardRefreshIntervalSeconds),
+      (timer) {
+        if (_index == 0) {
+          _refreshDashboardData();
+        }
+      },
+    );
+  }
+
+  void _refreshDashboardData() async {
+    var id = await SecureStorageService.getUserId();
+    if (id != null) {
+      if (userInfoProvider != null) {
+        userInfoProvider!.getUserInfo(id);
+      }
+      if (pitStatusProvider != null) {
+        pitStatusProvider!.getPitStatusFromProvider(id);
+      }
+    }
   }
 
   Future<String?> getUserInfo() async {
-    var sp = await SharedPreferences.getInstance();
-    name = sp.getString("UserName");
-    var accessToken = sp.getString("AccessToken");
+    name = await SecureStorageService.getUserName();
+    var accessToken = await SecureStorageService.getAccessToken();
 
-    bool isExpired = JwtDecoder.isExpired(accessToken!);
-    if (isExpired) {
-      debugPrint("Token is expired ❌");
-      Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LoginScreen(),
-          ));
+    if (accessToken == null || accessToken.isEmpty || JwtDecoder.isExpired(accessToken)) {
+      debugPrint("Token is expired or missing ❌");
+      if (mounted) {
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const LoginScreen(),
+            ));
+      }
+      return null;
     } else {
       DateTime expirationDate = JwtDecoder.getExpirationDate(accessToken);
       debugPrint("Token is still valid ✅");
       debugPrint("Expires at: $expirationDate");
     }
-    var id = sp.get("UserId");
-    userInfoProvider!.getUserInfo(id);
+    var id = await SecureStorageService.getUserId();
+    if (id != null) {
+      if (userInfoProvider != null) {
+        userInfoProvider!.getUserInfo(id);
+      }
+      if (pitStatusProvider != null) {
+        pitStatusProvider!.getPitStatusFromProvider(id);
+      }
+    }
     return null;
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   @override

@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:ies_mobile/res/colors.dart';
 import 'package:ies_mobile/view/login_screen.dart';
 import 'package:ies_mobile/webservises/rest_api.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ies_mobile/services/secure_storage_service.dart';
 
 import '../view/home.dart';
 
@@ -16,21 +16,22 @@ class LoginLogout extends ChangeNotifier {
   bool isError = false;
 
   Future loginUser(context, email, password) async {
-    var sp = await SharedPreferences.getInstance();
-
-    RestApi().loginUser(email, password).then((value) {
+    RestApi().loginUser(email, password).then((value) async {
       data = value;
       isLoading = false;
       isNoData = false;
       isError = false;
       debugPrint("login response : $data");
 
-      sp.setString(
-        "UserId",
-        data["user"]["id"],
-      );
-      sp.setString("UserName", data["user"]["name"]);
-      sp.setString("AccessToken", data["token"]);
+      if (data["user"] != null && data["user"]["id"] != null) {
+        await SecureStorageService.setUserId(data["user"]["id"]);
+      }
+      if (data["user"] != null && data["user"]["name"] != null) {
+        await SecureStorageService.setUserName(data["user"]["name"]);
+      }
+      if (data["token"] != null) {
+        await SecureStorageService.setAccessToken(data["token"]);
+      }
 
       Navigator.pushReplacement(
           context,
@@ -44,6 +45,14 @@ class LoginLogout extends ChangeNotifier {
       isLoading = false;
       isError = true;
       notifyListeners();
+      if (context != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Unauthorised request', 'Unauthorized: ')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     });
   }
 
@@ -140,10 +149,7 @@ class LoginLogout extends ChangeNotifier {
   }
 
   getlogout(context) async {
-    var sp = await SharedPreferences.getInstance();
-
-    sp.clear();
-    sp.remove("CustomerId");
+    await SecureStorageService.clearAll();
 
     Navigator.pushAndRemoveUntil(
       context,

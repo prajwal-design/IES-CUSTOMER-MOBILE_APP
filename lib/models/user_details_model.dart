@@ -134,13 +134,15 @@ class Sites {
   String? description;
   List<Systems>? systems;
   int? siteExternalId;
+  double? criticalResistanceValue;
 
   Sites(
       {this.id,
         this.name,
         this.description,
         this.systems,
-        this.siteExternalId});
+        this.siteExternalId,
+        this.criticalResistanceValue});
 
   Sites.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -153,6 +155,9 @@ class Sites {
       });
     }
     siteExternalId = json['siteExternalId'];
+    if (json['criticalResistanceValue'] != null) {
+      criticalResistanceValue = (json['criticalResistanceValue'] as num).toDouble();
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -164,6 +169,7 @@ class Sites {
       data['systems'] = this.systems!.map((v) => v.toJson()).toList();
     }
     data['siteExternalId'] = this.siteExternalId;
+    data['criticalResistanceValue'] = this.criticalResistanceValue;
     return data;
   }
 }

@@ -10,8 +10,8 @@ import 'package:ies_mobile/models/previous_sensor_value_model.dart';
 import 'package:ies_mobile/models/report_model.dart';
 import 'package:ies_mobile/models/sensor_model.dart';
 import 'package:ies_mobile/utils/constants.dart';
+import 'package:ies_mobile/services/secure_storage_service.dart';
 import 'package:open_file/open_file.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../main.dart';
 import '../models/all_sensor_model.dart';
@@ -36,18 +36,36 @@ class RestApi {
 
   Future<List<AllSensorModel>> getAllSensors() async {
     try {
-      dynamic repsponse =
+      dynamic response =
           await _apiServices.postApiResponse(ApiEndPoints.getAllSensors, {});
-      return repsponse;
+      if (response is List) {
+        return response.map((e) => AllSensorModel.fromJson(e)).toList();
+      } else if (response is Map && response['content'] != null) {
+        return (response['content'] as List)
+            .map((e) => AllSensorModel.fromJson(e))
+            .toList();
+      } else if (response is Map && response['data'] != null) {
+        return (response['data'] as List)
+            .map((e) => AllSensorModel.fromJson(e))
+            .toList();
+      }
+      return [];
     } catch (e) {
+      debugPrint("Error fetching all sensors: $e");
       rethrow;
     }
   }
 
   Future<PitStatusModel> getPitStatus(String userId) async {
     try {
-      final response = await _apiServices.postApiResponse(
-          "${ApiEndPoints.getDashBoardData}/$userId", null);
+      final response = await _apiServices.getApiResponse(
+          "${ApiEndPoints.getDashBoardData}");
+
+      if (response is Map && response['data'] != null) {
+        return PitStatusModel.fromJson(response['data']);
+      } else if (response is Map && response['content'] != null) {
+        return PitStatusModel.fromJson(response['content']);
+      }
 
       return PitStatusModel.fromJson(response);
     } catch (e, stackTrace) {
@@ -114,8 +132,7 @@ class RestApi {
   Future<void> downloadReport(Map<String, dynamic> data) async {
     debugPrint("data : $data");
     try {
-      final sp = await SharedPreferences.getInstance();
-      final bearer = sp.getString('AccessToken');
+      final bearer = await SecureStorageService.getAccessToken();
 
       if (bearer == null || bearer.isEmpty) {
         debugPrint("AccessToken is missing!");
@@ -195,6 +212,17 @@ class RestApi {
       }
     } catch (e, st) {
       debugPrint("Error during report download: $e\n$st");
+    }
+  }
+
+  Future<dynamic> updateSite(Map<String, dynamic> data) async {
+    try {
+      dynamic response =
+          await _apiServices.putApiResponse(ApiEndPoints.updateSite, data);
+      return response;
+    } catch (e) {
+      debugPrint("Error updating site: $e");
+      rethrow;
     }
   }
 }
